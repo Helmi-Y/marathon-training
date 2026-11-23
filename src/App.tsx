@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Dumbbell, Gauge, Plus, Route, Trophy, X } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { trainingPlan as initialPlan } from './data';
-import type { CompletionStore, DailyWorkout, TrainingWeek, WorkoutCategory } from './types';
+import type { CompletionStore, DailyWorkout, RunSegment, TrainingWeek, WorkoutCategory } from './types';
 import { completedMileage, formatDate, getDaysUntilRace, parseLocalDate, plannedMileage, strengthCompleted, weeklyCompletion } from './utils';
 import './App.css';
 
-const PLAN_KEY = 'marathon-plan-v2';
-const COMPLETION_KEY = 'marathon-completions-v2';
+const PLAN_KEY = 'marathon-plan-v3';
+const COMPLETION_KEY = 'marathon-completions-v3';
 const categories: WorkoutCategory[] = ['Easy Run','Tempo Run','Interval Run','Long Run','Upper Body','Lower Body','Tennis','Rock Climbing','Recovery','Rest'];
 
 function App() {
@@ -107,26 +107,31 @@ function App() {
       <div className="card-heading"><div><span className="eyebrow">TRAINING PLAN</span><h2>Weekly schedule</h2></div><button className="add-btn" onClick={() => setShowAdd(true)}><Plus size={16}/> Add workout</button></div>
       <div className="schedule-list">
         {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((dayName, day) => {
-          const workout = week.workouts.find(w => w.day === day);
+          const dayWorkouts = week.workouts.filter(w => w.day === day);
           const date = new Date(weekStart); date.setDate(date.getDate()+day);
           const isToday = date.toDateString() === today.toDateString();
-          if (!workout) return <div className="day-row rest-row" key={day}><DayLabel name={dayName} date={date} today={isToday}/><div className="rest-content"><span className="category rest">Rest</span><strong>Open for recovery</strong><button onClick={() => setEditing({id:`w${week.weekNumber}-${day}`,day,name:'Rest',category:'Rest',details:'Open recovery day',required:false,notes:''})}>Add workout</button></div></div>;
-          const completed = completions[workout.id]?.completed;
-          return <div className={`day-row ${completed?'is-complete':''}`} key={workout.id}><DayLabel name={dayName} date={date} today={isToday}/><article className="workout-row">
-            <button className={`check ${completed?'checked':''}`} aria-label={`Mark ${workout.name} complete`} onClick={() => toggleWorkout(workout.id)}>{completed?'✓':''}</button>
-            <div className="workout-main">
-              <div className="workout-title"><span className={`category ${workout.category.toLowerCase().replaceAll(' ','-')}`}>{workout.category}</span><strong>{workout.name}</strong></div>
-              <p>{workout.details}</p>
-              {workout.segments && <details className="run-details"><summary>{workout.distance ? `${workout.distance} miles` : workout.duration} · {workout.rpe ?? ''} · View workout</summary><div className="segment-list">{workout.segments.map((segment,index) => <div className="run-segment" key={`${segment.kind}-${index}`}><span>{segment.label}</span><strong>{segment.repetitions ? `${segment.repetitions} × ` : ''}{segment.distanceMiles ? `${segment.distanceMiles} mi` : segment.durationMinutes ? `${segment.durationMinutes} min` : ''}</strong><small>{segment.pace ?? ''}{segment.effort ? ` · ${segment.effort}` : ''}</small></div>)}</div>{workout.fueling && <p className="fueling"><strong>Fueling:</strong> {workout.fueling}</p>}</details>}
-              {workout.exercises && <details className="exercise-list"><summary>{workout.exercises.length} exercises · View details</summary>{workout.exercises.map(ex => {
-                const exerciseState = completions[workout.id]?.exercises?.[ex.id];
-                return <label key={ex.id}><span>{ex.name}</span><small>{ex.sets} × {ex.reps}</small><input aria-label={`${ex.name} weight`} value={exerciseState?.weight ?? ex.weight} placeholder="Weight" onChange={e => updateExerciseWeight(workout.id, ex.id, e.target.value)} /><input aria-label={`${ex.name} completed`} type="checkbox" checked={exerciseState?.completed ?? ex.completed} onChange={e => toggleExercise(workout.id, ex.id, e.target.checked)} /></label>;
-              })}</details>}
-              <input className="notes" value={completions[workout.id]?.notes ?? workout.notes} onChange={e => updateWorkoutNotes(workout.id,e.target.value)} aria-label={`Notes for ${workout.name}`}/>
-            </div>
-            <div className="workout-meta"><span>{workout.distance ? `${workout.distance} mi` : workout.duration}</span><small>{workout.pace ?? ''}</small></div>
-            <button className="edit-link" onClick={() => setEditing(workout)}>Edit</button>
-          </article></div>;
+          if (dayWorkouts.length === 0) return <div className="day-row rest-row" key={day}><DayLabel name={dayName} date={date} today={isToday}/><div className="rest-content"><span className="category rest">Rest</span><strong>Open for recovery</strong><button onClick={() => setEditing({id:`w${week.weekNumber}-${day}`,day,name:'Rest',category:'Rest',details:'Open recovery day',required:false,notes:''})}>Add workout</button></div></div>;
+          return <div className={`day-row ${dayWorkouts.every(w => completions[w.id]?.completed) ? 'is-complete' : ''}`} key={dayWorkouts[0].id}>
+            <DayLabel name={dayName} date={date} today={isToday}/>
+            {dayWorkouts.map(workout => {
+              const completed = completions[workout.id]?.completed;
+              return <article className="workout-row" key={workout.id}>
+                <button className={`check ${completed?'checked':''}`} aria-label={`Mark ${workout.name} complete`} onClick={() => toggleWorkout(workout.id)}>{completed?'✓':''}</button>
+                <div className="workout-main">
+                  <div className="workout-title"><span className={`category ${workout.category.toLowerCase().replaceAll(' ','-')}`}>{workout.category}</span><strong>{workout.name}</strong></div>
+                  <p>{workout.details}</p>
+                  {workout.segments && <details className="run-details"><summary>{workout.distance ? `${workout.distance} miles` : workout.duration}{workout.rpe ? ` · ${workout.rpe}` : ''} · View workout</summary><div className="segment-list">{workout.segments.map((segment,index) => <div className="run-segment" key={`${segment.kind}-${index}`}><span>{segment.label}</span><strong>{formatSegmentDistance(segment)}{segment.estimated ? ' (estimated)' : ''}</strong><small>{[segment.pace, segment.effort].filter(Boolean).join(' · ')}</small></div>)}</div>{workout.fueling && <p className="fueling"><strong>Fueling:</strong> {workout.fueling}</p>}</details>}
+                  {workout.exercises && <details className="exercise-list"><summary>{workout.exercises.length} exercises · View details</summary>{workout.exercises.map(ex => {
+                    const exerciseState = completions[workout.id]?.exercises?.[ex.id];
+                    return <label key={ex.id}><span>{ex.name}</span><small>{ex.sets} × {ex.reps}</small><input aria-label={`${ex.name} weight`} value={exerciseState?.weight ?? ex.weight} placeholder="Weight" onChange={e => updateExerciseWeight(workout.id, ex.id, e.target.value)} /><input aria-label={`${ex.name} completed`} type="checkbox" checked={exerciseState?.completed ?? ex.completed} onChange={e => toggleExercise(workout.id, ex.id, e.target.checked)} /></label>;
+                  })}</details>}
+                  <input className="notes" value={completions[workout.id]?.notes ?? workout.notes} onChange={e => updateWorkoutNotes(workout.id,e.target.value)} aria-label={`Notes for ${workout.name}`}/>
+                </div>
+                <div className="workout-meta"><span>{workout.distance ? `${workout.distance} mi` : workout.duration}</span><small>{workout.pace ?? ''}</small></div>
+                <button className="edit-link" onClick={() => setEditing(workout)}>Edit</button>
+              </article>;
+            })}
+          </div>;
         })}
       </div>
     </section>
@@ -145,6 +150,16 @@ function DayLabel({name,date,today}:{name:string,date:Date,today:boolean}) { ret
 function WorkoutModal({workout,onClose,onSave,onDelete}:{workout:DailyWorkout,onClose:()=>void,onSave:(w:DailyWorkout)=>void,onDelete?:()=>void}) {
   const [draft,setDraft]=useState<DailyWorkout>({...workout});
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><div className="modal" role="dialog" aria-modal="true" aria-label="Edit workout" onMouseDown={e=>e.stopPropagation()}><div className="modal-heading"><h2>Edit workout</h2><button aria-label="Close" onClick={onClose}><X size={18}/></button></div><div className="form-grid"><label>Workout name<input value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label><label>Category<select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value as WorkoutCategory})}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Day<select value={draft.day} onChange={e=>setDraft({...draft,day:Number(e.target.value)})}>{['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((d,i)=><option value={i} key={d}>{d}</option>)}</select></label><label>Distance (mi)<input type="number" step="0.5" value={draft.distance??''} onChange={e=>setDraft({...draft,distance:e.target.value?Number(e.target.value):undefined})}/></label><label>Duration<input value={draft.duration??''} onChange={e=>setDraft({...draft,duration:e.target.value})}/></label><label>Pace / intensity<input value={draft.pace??''} onChange={e=>setDraft({...draft,pace:e.target.value})}/></label><label className="full">Details<input value={draft.details} onChange={e=>setDraft({...draft,details:e.target.value})}/></label><label className="full">Notes<textarea value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})}/></label><label className="full checkbox-label"><input type="checkbox" checked={draft.required} onChange={e=>setDraft({...draft,required:e.target.checked})}/> Required workout</label></div><div className="modal-actions">{onDelete&&<button className="delete-btn" onClick={onDelete}>Remove</button>}<button className="cancel-btn" onClick={onClose}>Cancel</button><button className="save-btn" onClick={()=>onSave(draft)}>Save workout</button></div></div></div>
+}
+
+function formatSegmentDistance(segment: RunSegment): string {
+  const pieces: string[] = [];
+  if (segment.repetitions) pieces.push(`${segment.repetitions} ×`);
+  if (segment.distanceMeters) pieces.push(`${segment.distanceMeters} m`);
+  else if (segment.distanceMiles) pieces.push(`${segment.distanceMiles} mi`);
+  else if (segment.durationSeconds) pieces.push(`${segment.durationSeconds} sec`);
+  else if (segment.durationMinutes) pieces.push(`${segment.durationMinutes} min`);
+  return pieces.join(' ');
 }
 
 export default App;

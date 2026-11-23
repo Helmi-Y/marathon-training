@@ -18,6 +18,8 @@ export interface RunSegment {
   distanceMiles?: number;
   durationMinutes?: number;
   durationSeconds?: number;
+  distanceMeters?: number;
+  estimated?: boolean;
   repetitions?: number;
   pace?: string;
   effort?: string;
