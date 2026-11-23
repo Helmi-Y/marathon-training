@@ -111,8 +111,9 @@ function App() {
           const date = new Date(weekStart); date.setDate(date.getDate()+day);
           const isToday = date.toDateString() === today.toDateString();
           if (dayWorkouts.length === 0) return <div className="day-row rest-row" key={day}><DayLabel name={dayName} date={date} today={isToday}/><div className="rest-content"><span className="category rest">Rest</span><strong>Open for recovery</strong><button onClick={() => setEditing({id:`w${week.weekNumber}-${day}`,day,name:'Rest',category:'Rest',details:'Open recovery day',required:false,notes:''})}>Add workout</button></div></div>;
-          return <div className={`day-row ${dayWorkouts.every(w => completions[w.id]?.completed) ? 'is-complete' : ''}`} key={dayWorkouts[0].id}>
+          return <div className={`day-row ${dayWorkouts.every(w => completions[w.id]?.completed) ? 'is-complete' : ''}`} key={`day-${day}`}>
             <DayLabel name={dayName} date={date} today={isToday}/>
+            <div className="day-workouts">
             {dayWorkouts.map(workout => {
               const completed = completions[workout.id]?.completed;
               return <article className="workout-row" key={workout.id}>
@@ -131,6 +132,7 @@ function App() {
                 <button className="edit-link" onClick={() => setEditing(workout)}>Edit</button>
               </article>;
             })}
+            </div>
           </div>;
         })}
       </div>

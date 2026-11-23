@@ -859,6 +859,18 @@
   color: #566d67 !important;
 }
 
+.day-workouts {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.day-workouts .workout-row {
+  width: 100%;
+  background: #fff;
+  border-color: #edf1f0;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     padding: 18px 16px 40px;
