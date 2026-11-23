@@ -6,8 +6,8 @@ import type { CompletionStore, DailyWorkout, TrainingWeek, WorkoutCategory } fro
 import { completedMileage, formatDate, getDaysUntilRace, parseLocalDate, plannedMileage, strengthCompleted, weeklyCompletion } from './utils';
 import './App.css';
 
-const PLAN_KEY = 'marathon-plan-v1';
-const COMPLETION_KEY = 'marathon-completions-v1';
+const PLAN_KEY = 'marathon-plan-v2';
+const COMPLETION_KEY = 'marathon-completions-v2';
 const categories: WorkoutCategory[] = ['Easy Run','Tempo Run','Interval Run','Long Run','Upper Body','Lower Body','Tennis','Rock Climbing','Recovery','Rest'];
 
 function App() {
@@ -46,6 +46,18 @@ function App() {
 
   const toggleWorkout = (id: string) => setCompletions(prev => ({ ...prev, [id]: { ...prev[id], completed: !prev[id]?.completed, notes: prev[id]?.notes ?? '' } }));
   const updateWorkoutNotes = (id: string, notes: string) => setCompletions(prev => ({ ...prev, [id]: { ...prev[id], completed: prev[id]?.completed ?? false, notes } }));
+
+  const updateExerciseWeight = (workoutId: string, exerciseId: string, weight: string) => setCompletions(prev => {
+    const prior = prev[workoutId];
+    const exercise = prior?.exercises?.[exerciseId];
+    return {...prev,[workoutId]:{completed:prior?.completed??false,notes:prior?.notes??'',exercises:{...prior?.exercises,[exerciseId]:{completed:exercise?.completed??false,weight,notes:exercise?.notes??''}}}};
+  });
+
+  const toggleExercise = (workoutId: string, exerciseId: string, checked: boolean) => setCompletions(prev => {
+    const prior = prev[workoutId];
+    const exercise = prior?.exercises?.[exerciseId];
+    return {...prev,[workoutId]:{completed:prior?.completed??false,notes:prior?.notes??'',exercises:{...prior?.exercises,[exerciseId]:{completed:checked,weight:exercise?.weight??'',notes:exercise?.notes??''}}}};
+  });
 
   const saveWorkout = (workout: DailyWorkout) => {
     setPlan(prev => prev.map(w => w.id === week.id ? { ...w, workouts: w.workouts.some(x => x.id === workout.id) ? w.workouts.map(x => x.id === workout.id ? workout : x) : [...w.workouts, workout] } : w));
@@ -102,7 +114,16 @@ function App() {
           const completed = completions[workout.id]?.completed;
           return <div className={`day-row ${completed?'is-complete':''}`} key={workout.id}><DayLabel name={dayName} date={date} today={isToday}/><article className="workout-row">
             <button className={`check ${completed?'checked':''}`} aria-label={`Mark ${workout.name} complete`} onClick={() => toggleWorkout(workout.id)}>{completed?'✓':''}</button>
-            <div className="workout-main"><div className="workout-title"><span className={`category ${workout.category.toLowerCase().replaceAll(' ','-')}`}>{workout.category}</span><strong>{workout.name}</strong></div><p>{workout.details}</p>{workout.exercises && <details className="exercise-list"><summary>{workout.exercises.length} exercises · View details</summary>{workout.exercises.map(ex => <label key={ex.id}><span>{ex.name}</span><small>{ex.sets} × {ex.reps}</small><input aria-label={`${ex.name} weight`} defaultValue={ex.weight} placeholder="Weight"/><input aria-label={`${ex.name} completed`} type="checkbox" defaultChecked={ex.completed}/></label>)}</details>}<input className="notes" value={completions[workout.id]?.notes ?? workout.notes} onChange={e => updateWorkoutNotes(workout.id,e.target.value)} aria-label={`Notes for ${workout.name}`}/></div>
+            <div className="workout-main">
+              <div className="workout-title"><span className={`category ${workout.category.toLowerCase().replaceAll(' ','-')}`}>{workout.category}</span><strong>{workout.name}</strong></div>
+              <p>{workout.details}</p>
+              {workout.segments && <details className="run-details"><summary>{workout.distance ? `${workout.distance} miles` : workout.duration} · {workout.rpe ?? ''} · View workout</summary><div className="segment-list">{workout.segments.map((segment,index) => <div className="run-segment" key={`${segment.kind}-${index}`}><span>{segment.label}</span><strong>{segment.repetitions ? `${segment.repetitions} × ` : ''}{segment.distanceMiles ? `${segment.distanceMiles} mi` : segment.durationMinutes ? `${segment.durationMinutes} min` : ''}</strong><small>{segment.pace ?? ''}{segment.effort ? ` · ${segment.effort}` : ''}</small></div>)}</div>{workout.fueling && <p className="fueling"><strong>Fueling:</strong> {workout.fueling}</p>}</details>}
+              {workout.exercises && <details className="exercise-list"><summary>{workout.exercises.length} exercises · View details</summary>{workout.exercises.map(ex => {
+                const exerciseState = completions[workout.id]?.exercises?.[ex.id];
+                return <label key={ex.id}><span>{ex.name}</span><small>{ex.sets} × {ex.reps}</small><input aria-label={`${ex.name} weight`} value={exerciseState?.weight ?? ex.weight} placeholder="Weight" onChange={e => updateExerciseWeight(workout.id, ex.id, e.target.value)} /><input aria-label={`${ex.name} completed`} type="checkbox" checked={exerciseState?.completed ?? ex.completed} onChange={e => toggleExercise(workout.id, ex.id, e.target.checked)} /></label>;
+              })}</details>}
+              <input className="notes" value={completions[workout.id]?.notes ?? workout.notes} onChange={e => updateWorkoutNotes(workout.id,e.target.value)} aria-label={`Notes for ${workout.name}`}/>
+            </div>
             <div className="workout-meta"><span>{workout.distance ? `${workout.distance} mi` : workout.duration}</span><small>{workout.pace ?? ''}</small></div>
             <button className="edit-link" onClick={() => setEditing(workout)}>Edit</button>
           </article></div>;

@@ -10,6 +10,19 @@ export interface Exercise {
   notes: string;
 }
 
+export type RunSegmentKind = 'warmup' | 'work' | 'recovery' | 'cooldown' | 'steady' | 'progression' | 'marathon' | 'race';
+
+export interface RunSegment {
+  kind: RunSegmentKind;
+  label: string;
+  distanceMiles?: number;
+  durationMinutes?: number;
+  durationSeconds?: number;
+  repetitions?: number;
+  pace?: string;
+  effort?: string;
+}
+
 export interface DailyWorkout {
   id: string;
   day: number;
@@ -19,8 +32,11 @@ export interface DailyWorkout {
   duration?: string;
   distance?: number;
   pace?: string;
+  rpe?: string;
   required: boolean;
   exercises?: Exercise[];
+  segments?: RunSegment[];
+  fueling?: string;
   notes: string;
 }
 

@@ -812,6 +812,53 @@
   color: #a45e4c;
 }
 
+.run-details {
+  margin: 7px 0;
+  font-size: 10px;
+  color: #16837d;
+}
+
+.run-details summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.segment-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.run-segment {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 90px 150px;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #f4f8f7;
+  color: #566d67;
+}
+
+.run-segment span {
+  font-weight: 800;
+}
+
+.run-segment strong {
+  font-size: 10px;
+}
+
+.run-segment small {
+  color: #7d918c;
+}
+
+.fueling {
+  padding: 7px 8px !important;
+  margin: 7px 0 0 !important;
+  border-left: 3px solid #16837d;
+  background: #f4f8f7 !important;
+  color: #566d67 !important;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     padding: 18px 16px 40px;
